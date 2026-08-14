@@ -2,12 +2,13 @@
 ARC Secure Executor.
 
 Connects planning, security, execution, and verification
-into a single controlled execution pipeline.
+into a controlled execution pipeline.
 """
 
 from core.executor import ARCExecutor
 from core.planner import ActionType, Plan
 from security.policy import ARCSecurity, Permission
+from verification.files import folder_exists
 from verification.windows import is_app_running
 
 
@@ -21,7 +22,10 @@ class ARCSecureExecutor:
     def execute(self, plan: Plan) -> str:
         """Securely execute and verify an ARC plan."""
 
-        # Step 1: Security check
+        # ==============================================
+        # SECURITY CHECK
+        # ==============================================
+
         permission = self.security.check(plan)
 
         if permission == Permission.RESTRICTED:
@@ -30,17 +34,18 @@ class ARCSecureExecutor:
         if permission == Permission.CONFIRM:
             return "Confirmation required before executing this action."
 
-        # Step 2: Execute
-        result = self.executor.execute(plan)
+        # ==============================================
+        # OPEN APPLICATION
+        # ==============================================
 
-        # Step 3: Verify
         if plan.action == ActionType.OPEN_APP:
+
+            result = self.executor.execute(plan)
+
             if not plan.target:
                 return "Application target is missing."
 
-            verified = is_app_running(plan.target)
-
-            if verified:
+            if is_app_running(plan.target):
                 return f"Verified: {plan.target} is running."
 
             return (
@@ -48,6 +53,31 @@ class ARCSecureExecutor:
                 f"that {plan.target} is running."
             )
 
-        # Other action types will receive their own
-        # verification logic as we implement them.
-        return result
+        # ==============================================
+        # CREATE FOLDER
+        # ==============================================
+
+        if plan.action == ActionType.CREATE_FOLDER:
+
+            result = self.executor.execute(plan)
+
+            if result.startswith("Folder creation failed"):
+                return result
+
+            from pathlib import Path
+
+            folder_path = Path(result)
+
+            if folder_exists(folder_path):
+                return f"Verified: folder exists at {folder_path}"
+
+            return (
+                "Folder creation was attempted, "
+                "but I could not verify the folder."
+            )
+
+        # ==============================================
+        # OTHER ACTIONS
+        # ==============================================
+
+        return self.executor.execute(plan)

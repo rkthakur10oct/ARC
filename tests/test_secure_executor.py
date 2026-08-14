@@ -6,8 +6,11 @@ planner = ARCPlanner()
 executor = ARCSecureExecutor()
 
 
-plan = planner.create_plan("Notepad kholo")
+command = "Desktop par ARC_PIPELINE_TEST folder banao"
 
+plan = planner.create_plan(command)
+
+print("Command:", command)
 print("Action:", plan.action)
 print("Target:", plan.target)
 

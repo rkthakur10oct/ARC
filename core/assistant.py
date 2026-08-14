@@ -39,6 +39,13 @@ class ARCAssistant:
         plan = self.planner.create_plan(user_input)
 
         # Action request.
+        
+        if (
+            plan.action == ActionType.CREATE_FOLDER
+            and not plan.target
+        ):
+            return "Kaunsa folder banana hai?"
+
         if plan.action != ActionType.CHAT:
             return self.executor.execute(plan)
 
