@@ -5,7 +5,7 @@ Executes approved ARC plans using bounded tools.
 """
 
 from core.planner import ActionType, Plan
-from tools.files import create_folder
+from tools.files import create_file, create_folder
 from tools.windows import open_app
 
 
@@ -30,8 +30,7 @@ class ARCExecutor:
                 return f"{plan.target} opened successfully."
 
             return (
-                f"I cannot open '{plan.target}'. "
-                "It is not a supported application."
+                f"I cannot open '{plan.target}'. " "It is not a supported application."
             )
 
         # ==============================================
@@ -50,6 +49,23 @@ class ARCExecutor:
 
             except Exception as exc:
                 return f"Folder creation failed: {exc}"
+
+        # ==============================================
+        # CREATE FILE
+        # ==============================================
+
+        if plan.action == ActionType.CREATE_FILE:
+
+            if not plan.target:
+                return "I couldn't determine the file name."
+
+            try:
+                file_path = create_file(plan.target)
+
+                return str(file_path)
+
+            except Exception as exc:
+                return f"File creation failed: {exc}"
 
         # ==============================================
         # OTHER ACTIONS

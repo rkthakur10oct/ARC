@@ -33,7 +33,12 @@ class ARCPlanner:
     """Creates structured plans from user requests."""
 
     def create_plan(self, user_input: str) -> Plan:
-        """Convert natural-language input into a structured plan."""
+        """
+        Convert natural-language input into a structured plan.
+
+        The current planner intentionally uses deterministic
+        rules. LLM-based planning will be added later.
+        """
 
         text = user_input.lower().strip()
 
@@ -123,6 +128,33 @@ class ARCPlanner:
             )
 
         # =================================================
+        # CREATE FILE
+        # =================================================
+
+        file_keywords = [
+            "file banao",
+            "file bana do",
+            "file create",
+            "file banana",
+            "create file",
+            "make file",
+        ]
+
+        file_request = any(
+            keyword in text
+            for keyword in file_keywords
+        )
+
+        if file_request:
+
+            file_name = self._extract_file_name(user_input)
+
+            return Plan(
+                action=ActionType.CREATE_FILE,
+                target=file_name,
+            )
+
+        # =================================================
         # WEB SEARCH
         # =================================================
 
@@ -158,10 +190,16 @@ class ARCPlanner:
             action=ActionType.CHAT,
         )
 
+    # =====================================================
+    # FOLDER NAME EXTRACTION
+    # =====================================================
+
     @staticmethod
-    def _extract_folder_name(user_input: str) -> str | None:
+    def _extract_folder_name(
+        user_input: str,
+    ) -> str | None:
         """
-        Extract folder name from common English/Hinglish commands.
+        Extract a folder name from common English/Hinglish commands.
 
         Examples:
 
@@ -191,9 +229,9 @@ class ARCPlanner:
 
         lower_text = text.lower()
 
-        # =================================================
-        # REMOVE LOCATION PREFIX
-        # =================================================
+        # -------------------------------------------------
+        # Remove location prefix
+        # -------------------------------------------------
 
         location_prefixes = [
             "desktop par",
@@ -211,18 +249,18 @@ class ARCPlanner:
 
                 break
 
-        # =================================================
-        # REMOVE "EK"
-        # =================================================
+        # -------------------------------------------------
+        # Remove "ek"
+        # -------------------------------------------------
 
         if lower_text.startswith("ek "):
 
             text = text[3:].strip()
             lower_text = text.lower()
 
-        # =================================================
-        # "ARC NAAM KA FOLDER BANAO"
-        # =================================================
+        # -------------------------------------------------
+        # "ARC naam ka folder banao"
+        # -------------------------------------------------
 
         marker = " naam ka folder"
 
@@ -235,9 +273,9 @@ class ARCPlanner:
             if folder_name:
                 return folder_name
 
-        # =================================================
-        # "TECH NAAM SE FOLDER BANAO"
-        # =================================================
+        # -------------------------------------------------
+        # "tech naam se folder banao"
+        # -------------------------------------------------
 
         marker = " naam se folder"
 
@@ -250,9 +288,9 @@ class ARCPlanner:
             if folder_name:
                 return folder_name
 
-        # =================================================
-        # "TECH FOLDER BANAO"
-        # =================================================
+        # -------------------------------------------------
+        # "tech folder banao"
+        # -------------------------------------------------
 
         folder_markers = [
             " folder banao",
@@ -273,16 +311,14 @@ class ARCPlanner:
                 if folder_name:
                     return folder_name
 
-        # =================================================
-        # "CREATE FOLDER PROJECTS"
-        # =================================================
+        # -------------------------------------------------
+        # "create folder Projects"
+        # -------------------------------------------------
 
         command_prefixes = [
             "create folder ",
             "make folder ",
         ]
-
-        lower_text = text.lower()
 
         for prefix in command_prefixes:
 
@@ -293,8 +329,142 @@ class ARCPlanner:
                 if folder_name:
                     return folder_name
 
-        # =================================================
-        # NO FOLDER NAME
-        # =================================================
+        return None
+
+    # =====================================================
+    # FILE NAME EXTRACTION
+    # =====================================================
+
+    @staticmethod
+    def _extract_file_name(
+        user_input: str,
+    ) -> str | None:
+        """
+        Extract a file name from common English/Hinglish commands.
+
+        Examples:
+
+            Desktop par notes.txt file banao
+                -> notes.txt
+
+            hello.txt naam ki file banao
+                -> hello.txt
+
+            report.txt naam se file banao
+                -> report.txt
+
+            create file project.txt
+                -> project.txt
+
+            file banao
+                -> None
+        """
+
+        text = user_input.strip()
+
+        if not text:
+            return None
+
+        lower_text = text.lower()
+
+        # -------------------------------------------------
+        # Remove location prefix
+        # -------------------------------------------------
+
+        location_prefixes = [
+            "desktop par",
+            "desktop pe",
+            "desktop mein",
+            "desktop me",
+        ]
+
+        for prefix in location_prefixes:
+
+            if lower_text.startswith(prefix):
+
+                text = text[len(prefix):].strip()
+                lower_text = text.lower()
+
+                break
+
+        # -------------------------------------------------
+        # Remove "ek"
+        # -------------------------------------------------
+
+        if lower_text.startswith("ek "):
+
+            text = text[3:].strip()
+            lower_text = text.lower()
+
+        # -------------------------------------------------
+        # "notes.txt naam ki file banao"
+        # -------------------------------------------------
+
+        marker = " naam ki file"
+
+        if marker in lower_text:
+
+            index = lower_text.index(marker)
+
+            file_name = text[:index].strip()
+
+            if file_name:
+                return file_name
+
+        # -------------------------------------------------
+        # "notes.txt naam se file banao"
+        # -------------------------------------------------
+
+        marker = " naam se file"
+
+        if marker in lower_text:
+
+            index = lower_text.index(marker)
+
+            file_name = text[:index].strip()
+
+            if file_name:
+                return file_name
+
+        # -------------------------------------------------
+        # "notes.txt file banao"
+        # -------------------------------------------------
+
+        file_markers = [
+            " file banao",
+            " file bana do",
+            " file bana",
+            " file banana",
+            " file create",
+        ]
+
+        for marker in file_markers:
+
+            if marker in lower_text:
+
+                index = lower_text.index(marker)
+
+                file_name = text[:index].strip()
+
+                if file_name:
+                    return file_name
+
+        # -------------------------------------------------
+        # "create file notes.txt"
+        # -------------------------------------------------
+
+        command_prefixes = [
+            "create file ",
+            "make file ",
+        ]
+
+        for prefix in command_prefixes:
+
+            if lower_text.startswith(prefix):
+
+                file_name = text[len(prefix):].strip()
+
+                if file_name:
+                    return file_name
 
         return None

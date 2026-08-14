@@ -34,3 +34,22 @@ def create_folder(folder_name: str) -> Path:
     )
 
     return folder_path
+
+def create_file(file_name: str) -> Path:
+    """
+    Create an empty file on the user's Desktop.
+
+    Returns:
+        Path of the created/existing file.
+    """
+
+    file_name = file_name.strip()
+
+    if not file_name:
+        raise ValueError("File name cannot be empty.")
+
+    file_path = get_desktop_path() / file_name
+
+    file_path.touch(exist_ok=True)
+
+    return file_path

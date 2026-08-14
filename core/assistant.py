@@ -2,6 +2,14 @@
 ARC Assistant.
 
 Central orchestration layer for ARC v1.
+
+Responsible for:
+- Receiving user input
+- Creating an action plan
+- Handling missing action targets
+- Sending actions to the secure executor
+- Managing normal LLM conversation
+- Maintaining short-term conversation context
 """
 
 from core.llm import ask_llm
@@ -13,43 +21,86 @@ class ARCAssistant:
     """Main orchestration layer for ARC."""
 
     def __init__(self) -> None:
+        """Initialize ARC assistant components."""
+
         self.name = "ARC"
 
-        # Short-term conversation history.
-        self.conversation: list[dict] = []
+        # -------------------------------------------------
+        # Short-term conversation history
+        # -------------------------------------------------
 
-        # Core components.
+        self.conversation: list[dict[str, str]] = []
+
+        # -------------------------------------------------
+        # Core ARC components
+        # -------------------------------------------------
+
         self.planner = ARCPlanner()
         self.executor = ARCSecureExecutor()
 
     def respond(self, user_input: str) -> str:
         """
-        Process user input.
+        Process a single user request.
 
-        Chat requests go to the LLM.
-        Action requests go through:
+        Flow:
 
-        Planner → Security → Executor → Verification
+            User Input
+                ↓
+            Planner
+                ↓
+            Target Validation
+                ↓
+            Secure Executor
+                ↓
+            Verification
+
+        Normal conversation follows:
+
+            User Input
+                ↓
+            LLM
+                ↓
+            Conversation Memory
         """
+
+        # -------------------------------------------------
+        # Validate input
+        # -------------------------------------------------
 
         if not user_input.strip():
             return "Please tell me what you want me to do."
 
-        # Create a plan first.
+        # -------------------------------------------------
+        # Create action plan
+        # -------------------------------------------------
+
         plan = self.planner.create_plan(user_input)
 
-        # Action request.
-        
-        if (
-            plan.action == ActionType.CREATE_FOLDER
-            and not plan.target
-        ):
+        # -------------------------------------------------
+        # Handle missing folder name
+        # -------------------------------------------------
+
+        if plan.action == ActionType.CREATE_FOLDER and not plan.target:
             return "Kaunsa folder banana hai?"
+
+        # -------------------------------------------------
+        # Handle missing file name
+        # -------------------------------------------------
+
+        if plan.action == ActionType.CREATE_FILE and not plan.target:
+            return "Kaunsi file banani hai?"
+
+        # -------------------------------------------------
+        # Execute non-chat actions
+        # -------------------------------------------------
 
         if plan.action != ActionType.CHAT:
             return self.executor.execute(plan)
 
-        # Normal conversation.
+        # -------------------------------------------------
+        # Normal conversation
+        # -------------------------------------------------
+
         self.conversation.append(
             {
                 "role": "user",
@@ -57,8 +108,10 @@ class ARCAssistant:
             }
         )
 
+        # Ask local LLM.
         response = ask_llm(self.conversation)
 
+        # Store assistant response.
         self.conversation.append(
             {
                 "role": "assistant",
@@ -69,6 +122,6 @@ class ARCAssistant:
         return response
 
     def clear_conversation(self) -> None:
-        """Clear current session context."""
+        """Clear the current short-term conversation context."""
 
         self.conversation.clear()
