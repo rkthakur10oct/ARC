@@ -26,6 +26,7 @@ class Plan:
 
     action: ActionType
     target: str | None = None
+    location: str | None = None
     requires_confirmation: bool = False
 
 
@@ -83,15 +84,9 @@ class ARCPlanner:
 
         for app_name, aliases in app_aliases.items():
 
-            app_detected = any(
-                alias in text
-                for alias in aliases
-            )
+            app_detected = any(alias in text for alias in aliases)
 
-            open_requested = any(
-                phrase in text
-                for phrase in open_words
-            )
+            open_requested = any(phrase in text for phrase in open_words)
 
             if app_detected and open_requested:
                 return Plan(
@@ -113,18 +108,17 @@ class ARCPlanner:
             "make folder",
         ]
 
-        folder_request = any(
-            keyword in text
-            for keyword in folder_keywords
-        )
+        folder_request = any(keyword in text for keyword in folder_keywords)
 
         if folder_request:
 
             folder_name = self._extract_folder_name(user_input)
+            location = self._extract_location(user_input)
 
             return Plan(
                 action=ActionType.CREATE_FOLDER,
                 target=folder_name,
+                location=location,
             )
 
         # =================================================
@@ -140,18 +134,17 @@ class ARCPlanner:
             "make file",
         ]
 
-        file_request = any(
-            keyword in text
-            for keyword in file_keywords
-        )
+        file_request = any(keyword in text for keyword in file_keywords)
 
         if file_request:
 
             file_name = self._extract_file_name(user_input)
+            location = self._extract_location(user_input)
 
             return Plan(
                 action=ActionType.CREATE_FILE,
                 target=file_name,
+                location=location,
             )
 
         # =================================================
@@ -189,6 +182,92 @@ class ARCPlanner:
         return Plan(
             action=ActionType.CHAT,
         )
+
+    # =====================================================
+    # LOCATION EXTRACTION
+    # =====================================================
+
+    @staticmethod
+    def _extract_location(
+        user_input: str,
+    ) -> str | None:
+        """
+        Extract a requested location from a natural-language command.
+
+        Examples:
+
+            Desktop par notes.txt file banao
+                -> Desktop
+
+            Documents mein report.pdf file banao
+                -> Documents
+
+            Downloads mein data.csv file banao
+                -> Downloads
+
+            D:\\Projects mein main.py file banao
+                -> D:\\Projects
+
+            notes.txt file banao
+                -> None
+        """
+
+        text = user_input.strip()
+
+        if not text:
+            return None
+
+        lower_text = text.lower()
+
+        # -------------------------------------------------
+        # Known Windows/user locations
+        # -------------------------------------------------
+
+        location_patterns = [
+            ("desktop par", "Desktop"),
+            ("desktop pe", "Desktop"),
+            ("desktop mein", "Desktop"),
+            ("desktop me", "Desktop"),
+            ("documents mein", "Documents"),
+            ("documents me", "Documents"),
+            ("documents par", "Documents"),
+            ("documents pe", "Documents"),
+            ("downloads mein", "Downloads"),
+            ("downloads me", "Downloads"),
+            ("downloads par", "Downloads"),
+            ("downloads pe", "Downloads"),
+        ]
+
+        for phrase, location in location_patterns:
+
+            if phrase in lower_text:
+                return location
+
+        # -------------------------------------------------
+        # Absolute Windows path
+        # -------------------------------------------------
+
+        if len(text) >= 3 and text[1:3] == ":\\":
+            path_endings = [
+                " file banao",
+                " file bana do",
+                " file create",
+                " folder banao",
+                " folder bana do",
+                " folder create",
+            ]
+
+            for ending in path_endings:
+
+                index = lower_text.find(ending)
+
+                if index != -1:
+                    path = text[:index].strip()
+
+                    if path:
+                        return path
+
+        return None
 
     # =====================================================
     # FOLDER NAME EXTRACTION
@@ -238,13 +317,21 @@ class ARCPlanner:
             "desktop pe",
             "desktop mein",
             "desktop me",
+            "documents mein",
+            "documents me",
+            "documents par",
+            "documents pe",
+            "downloads mein",
+            "downloads me",
+            "downloads par",
+            "downloads pe",
         ]
 
         for prefix in location_prefixes:
 
             if lower_text.startswith(prefix):
 
-                text = text[len(prefix):].strip()
+                text = text[len(prefix) :].strip()
                 lower_text = text.lower()
 
                 break
@@ -324,7 +411,7 @@ class ARCPlanner:
 
             if lower_text.startswith(prefix):
 
-                folder_name = text[len(prefix):].strip()
+                folder_name = text[len(prefix) :].strip()
 
                 if folder_name:
                     return folder_name
@@ -376,13 +463,21 @@ class ARCPlanner:
             "desktop pe",
             "desktop mein",
             "desktop me",
+            "documents mein",
+            "documents me",
+            "documents par",
+            "documents pe",
+            "downloads mein",
+            "downloads me",
+            "downloads par",
+            "downloads pe",
         ]
 
         for prefix in location_prefixes:
 
             if lower_text.startswith(prefix):
 
-                text = text[len(prefix):].strip()
+                text = text[len(prefix) :].strip()
                 lower_text = text.lower()
 
                 break
@@ -462,7 +557,7 @@ class ARCPlanner:
 
             if lower_text.startswith(prefix):
 
-                file_name = text[len(prefix):].strip()
+                file_name = text[len(prefix) :].strip()
 
                 if file_name:
                     return file_name
